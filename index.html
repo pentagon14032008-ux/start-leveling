@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StartLeveling — Gamified Productivity OS</title>
+  
+  <link rel="stylesheet" href="css/start-leveling.css">
+</head>
+<body>
+
+  <div id="app-layout" class="app-layout">
+
+    <!-- ======================================
+         LEFT SIDEBAR
+    ======================================= -->
+    <aside id="left-sidebar" class="left-sidebar" role="navigation" aria-label="Main Navigation">
+
+      <!-- Profile Area -->
+      <button
+        id="sidebarProfileBtn"
+        class="sidebar-profile"
+        aria-label="Open profile settings"
+      >
+        <div class="profile-avatar-wrapper">
+          <img src="" alt="User Avatar" id="profileAvatar" class="profile-avatar-img">
+          <span class="profile-avatar-fallback" aria-hidden="true"></span>
+        </div>
+        <div class="profile-details">
+          <span id="profileUsername" class="profile-username"></span>
+          <div class="profile-badges">
+            <span id="profileLevel" class="profile-level-badge"></span>
+            <span id="profileRank" class="profile-rank-badge"></span>
+          </div>
+        </div>
+      </button>
+
+      <!-- Navigation -->
+      <nav id="sidebar-nav" class="sidebar-nav" aria-label="Application Views">
+        <ul class="sidebar-nav-list" role="list">
+
+          <li class="sidebar-nav-item">
+            <button
+              class="sidebar-nav-btn sidebar-nav-btn--active"
+              id="navDailyWorkbook"
+              data-view="daily-workbook"
+              data-target="view-daily-workbook"
+              aria-label="Navigate to Daily Workbook"
+              aria-current="page"
+            >
+              <span class="sidebar-nav-icon" aria-hidden="true">📋</span>
+              <span class="sidebar-nav-label">Daily Workbook</span>
+            </button>
+          </li>
+
+          <li class="sidebar-nav-item">
+            <button
+              class="sidebar-nav-btn"
+              id="navDailyRoutine"
+              data-view="daily-routine"
+              data-target="view-daily-routine"
+              aria-label="Navigate to Daily Routine"
+            >
+              <span class="sidebar-nav-icon" aria-hidden="true">📝</span>
+              <span class="sidebar-nav-label">Daily Routine</span>
+            </button>
+          </li>
+
+          <li class="sidebar-nav-item">
+            <button
+              class="sidebar-nav-btn"
+              id="navDailyQuest"
+              data-view="daily-quest"
+              data-target="view-daily-quest"
+              aria-label="Navigate to Daily Quest"
+            >
+              <span class="sidebar-nav-icon" aria-hidden="true">⭐</span>
+              <span class="sidebar-nav-label">Daily Quest</span>
+            </button>
+          </li>
+
+          <li class="sidebar-nav-item">
+            <button
+              class="sidebar-nav-btn"
+              id="navAnalytics"
+              data-view="analytics"
+              data-target="view-analytics"
+              aria-label="Navigate to Analytics"
+            >
+              <span class="sidebar-nav-icon" aria-hidden="true">📊</span>
+              <span class="sidebar-nav-label">Analytics</span>
+            </button>
+          </li>
+
+        </ul>
+      </nav>
+
+      <!-- Days Archive -->
+      <div id="days-archive" class="days-archive">
+        <h3 class="days-archive-heading">Archive</h3>
+        <ul id="archive-list" class="archive-list" role="list"></ul>
+      </div>
+
+      <!-- Sidebar Footer -->
+      <div id="sidebar-footer" class="sidebar-footer">
+        <button
+          id="btnReturnToToday"
+          class="sidebar-footer-btn"
+          style="display: none;"
+          aria-label="Return to today view"
+        >
+          <span class="sidebar-footer-icon" aria-hidden="true">📅</span>
+          <span class="sidebar-footer-label">Return to Today</span>
+        </button>
+        <a
+          href="javascript:void(0);"
+          id="btnBackToLifeOS"
+          class="sidebar-footer-link"
+          aria-label="Back to LifeOS Portal"
+        >
+          <span class="sidebar-footer-icon" aria-hidden="true"></span>
+          <span class="sidebar-footer-label">Back to LifeOS Portal</span>
+        </a>
+      </div>
+
+    </aside>
+
+    <!-- ======================================
+         MAIN WRAPPER: TOOLBAR + CONTENT
+    ======================================= -->
+    <div id="main-wrapper" class="main-wrapper">
+
+      <!-- TOP TOOLBAR -->
+      <header id="top-toolbar" class="top-toolbar" role="banner">
+
+        <div class="toolbar-left">
+          <button
+            id="btnMobileMenu"
+            class="toolbar-btn toolbar-btn--icon"
+            aria-label="Toggle mobile menu"
+            aria-expanded="false"
+            aria-controls="left-sidebar"
+          >
+            <span class="icon-hamburger" aria-hidden="true">
+              <span class="icon-hamburger-middle"></span>
+            </span>
+          </button>
+
+          <button
+            id="btnUndo"
+            class="toolbar-btn toolbar-btn--icon"
+            aria-label="Undo last action"
+          >
+            <span class="icon-undo" aria-hidden="true"></span>
+          </button>
+
+          <button
+            id="btnRedo"
+            class="toolbar-btn toolbar-btn--icon"
+            aria-label="Redo last action"
+          >
+            <span class="icon-redo" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <div class="toolbar-center">
+          <h1 id="currentViewTitle" class="current-view-title">Daily Workbook</h1>
+        </div>
+
+        <div class="toolbar-right">
+          <button
+            id="toolbarActionButton"
+            class="toolbar-btn toolbar-btn--primary"
+            aria-label="Toolbar action"
+            aria-expanded="false"
+          >
+            <span class="icon-generate" aria-hidden="true"></span>
+            <span class="toolbar-btn-label">Generate Task</span>
+          </button>
+        </div>
+
+      </header>
+
+      <!-- ======================================
+           MAIN CONTENT
+      ======================================= -->
+      <main id="main-content" class="main-content" role="main">
+
+        <!-- ============================
+             VIEW 1 — DAILY WORKBOOK
+        ============================= -->
+        <section
+          id="view-daily-workbook"
+          class="view view--active"
+          data-view="daily-workbook"
+          aria-label="Daily Workbook"
+        >
+
+          <!-- Workbook Page Header -->
+          <header class="workbook-header">
+            <div class="workbook-date-group">
+              <span id="workbookDate" class="workbook-date"></span>
+              <span id="workbookWeekday" class="workbook-weekday"></span>
+            </div>
+            <div class="workbook-purpose-group">
+              <label for="workbookPurpose" class="workbook-purpose-label">Daily Purpose</label>
+              <input
+                type="text"
+                id="workbookPurpose"
+                class="workbook-purpose-input"
+                placeholder="Define your purpose for today..."
+                autocomplete="off"
+                aria-label="Daily Purpose"
+              >
+            </div>
+          </header>
+
+          <!-- Task Container -->
+          <div id="task-container" class="task-container">
+
+            <!-- CATEGORY: GYM -->
+            <div class="task-block" id="task-block-gym" data-category="GYM">
+              <div class="task-block-header">
+                <h2 class="task-block-title">GYM</h2>
+                <span class="task-block-meta" id="task-count-gym"></span>
+              </div>
+              <ul class="task-list" id="task-list-gym" role="list" aria-label="GYM tasks"></ul>
+            </div>
+
+            <!-- CATEGORY: TRADING -->
+            <div class="task-block" id="task-block-trading" data-category="Trading">
+              <div class="task-block-header">
+                <h2 class="task-block-title">Trading</h2>
+                <span class="task-block-meta" id="task-count-trading"></span>
+              </div>
+              <ul class="task-list" id="task-list-trading" role="list" aria-label="Trading tasks"></ul>
+            </div>
+
+            <!-- CATEGORY: EDUCATION -->
+            <div class="task-block" id="task-block-education" data-category="Education">
+              <div class="task-block-header">
+                <h2 class="task-block-title">Education</h2>
+                <span class="task-block-meta" id="task-count-education"></span>
+              </div>
+              <ul class="task-list" id="task-list-education" role="list" aria-label="Education tasks"></ul>
+            </div>
+
+            <!-- CATEGORY: DEEP WORK -->
+            <div class="task-block" id="task-block-deep-work" data-category="Deep Work">
+              <div class="task-block-header">
+                <h2 class="task-block-title">Deep Work</h2>
+                <span class="task-block-meta" id="task-count-deep-work"></span>
+              </div>
+              <ul class="task-list" id="task-list-deep-work" role="list" aria-label="Deep Work tasks"></ul>
+            </div>
+
+            <!-- CATEGORY: HEALTH -->
+            <div class="task-block" id="task-block-health" data-category="Health">
+              <div class="task-block-header">
+                <h2 class="task-block-title">Health</h2>
+                <span class="task-block-meta" id="task-count-health"></span>
+              </div>
+              <ul class="task-list" id="task-list-health" role="list" aria-label="Health tasks"></ul>
+            </div>
+
+            <!-- CATEGORY: FINANCE -->
+            <div class="task-block" id="task-block-finance" data-category="Finance">
+              <div class="task-block-header">
+                <h2 class="task-block-title">Finance</h2>
+                <span class="task-block-meta" id="task-count-finance"></span>
+              </div>
+              <ul class="task-list" id="task-list-finance" role="list" aria-label="Finance tasks"></ul>
+            </div>
+
+            <!-- CATEGORY: ISLAM -->
+            <div class="task-block" id="task-block-islam" data-category="Islam">
+              <div class="task-block-header">
+                <h2 class="task-block-title">Islam</h2>
+                <span class="task-block-meta" id="task-count-islam"></span>
+              </div>
+              <ul class="task-list" id="task-list-islam" role="list" aria-label="Islam tasks"></ul>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- ============================
+             VIEW 2 — DAILY ROUTINE
+        ============================= -->
+        <section
+          id="view-daily-routine"
+          class="view"
+          data-view="daily-routine"
+          aria-label="Daily Routine"
+        >
+          <header class="view-header">
+            <h2 class="view-header-title">Daily Routine</h2>
+            <p class="view-header-subtitle">Plan, reflect, and organize your day.</p>
+          </header>
+          <div
+            id="routine-editor"
+            class="routine-editor"
+            contenteditable="true"
+            role="textbox"
+            aria-multiline="true"
+            aria-label="Daily Routine editor"
+            data-placeholder="Start writing your routine for today..."
+            spellcheck="true"
+          ></div>
+        </section>
+
+        <!-- ============================
+             VIEW 3 — DAILY QUEST
+        ============================= -->
+        <section
+          id="view-daily-quest"
+          class="view"
+          data-view="daily-quest"
+          aria-label="Daily Quest"
+        >
+
+          <!-- Section A: Daily Prayers -->
+          <div id="quest-prayers-section" class="quest-section">
+            <header class="quest-section-header">
+              <h2 class="quest-section-title">Daily Prayers</h2>
+              <span class="quest-section-sp-counter" id="prayers-sp-total" aria-label="Prayers SP earned">0 / 250 SP</span>
+            </header>
+            <div class="quest-table-wrapper">
+              <table
+                class="quest-table"
+                id="prayers-table"
+                aria-label="Daily Prayers table"
+              >
+                <thead>
+                  <tr class="quest-thead-row">
+                    <th class="quest-th" scope="col">Status</th>
+                    <th class="quest-th" scope="col">Time</th>
+                    <th class="quest-th" scope="col">Prayer</th>
+                    <th class="quest-th" scope="col">Notes</th>
+                    <th class="quest-th quest-th--sp" scope="col">SP</th>
+                  </tr>
+                </thead>
+                <tbody>
+
+                  <tr class="quest-row prayer-row" id="prayer-row-bomdod" data-prayer="bomdod">
+                    <td class="quest-td quest-td--status" data-label="Status">
+                      <input type="checkbox" class="prayer-checkbox" id="chk-bomdod" aria-label="Mark Bomdod as completed">
+                      <label for="chk-bomdod" class="prayer-check-label" aria-hidden="true"></label>
+                    </td>
+                    <td class="quest-td quest-td--time" data-label="Time">
+                      <span class="prayer-time" id="time-bomdod">—</span>
+                    </td>
+                    <td class="quest-td quest-td--prayer-name" data-label="Prayer">
+                      <span class="prayer-name">Bomdod</span>
+                    </td>
+                    <td class="quest-td quest-td--notes" data-label="Notes">
+                      <input
+                        type="text"
+                        class="prayer-notes-input"
+                        id="notes-bomdod"
+                        placeholder="Add a note..."
+                        aria-label="Bomdod notes"
+                      >
+                    </td>
+                    <td class="quest-td quest-td--sp" data-label="SP">
+                      <span class="prayer-sp-value" data-sp="50">50 SP</span>
+                    </td>
+                  </tr>
+
+                  <tr class="quest-row prayer-row" id="prayer-row-peshin" data-prayer="peshin">
+                    <td class="quest-td quest-td--status" data-label="Status">
+                      <input type="checkbox" class="prayer-checkbox" id="chk-peshin" aria-label="Mark Peshin as completed">
+                      <label for="chk-peshin" class="prayer-check-label" aria-hidden="true"></label>
+                    </td>
+                    <td class="quest-td quest-td--time" data-label="Time">
+                      <span class="prayer-time" id="time-peshin">—</span>
+                    </td>
+                    <td class="quest-td quest-td--prayer-name" data-label="Prayer">
+                      <span class="prayer-name">Peshin</span>
+                    </td>
+                    <td class="quest-td quest-td--notes" data-label="Notes">
+                      <input
+                        type="text"
+                        class="prayer-notes-input"
+                        id="notes-peshin"
+                        placeholder="Add a note..."
+                        aria-label="Peshin notes"
+                      >
+                    </td>
+                    <td class="quest-td quest-td--sp" data-label="SP">
+                      <span class="prayer-sp-value" data-sp="50">50 SP</span>
+                    </td>
+                  </tr>
+
+                  <tr class="quest-row prayer-row" id="prayer-row-asr" data-prayer="asr">
+                    <td class="quest-td quest-td--status" data-label="Status">
+                      <input type="checkbox" class="prayer-checkbox" id="chk-asr" aria-label="Mark Asr as completed">
+                      <label for="chk-asr" class="prayer-check-label" aria-hidden="true"></label>
+                    </td>
+                    <td class="quest-td quest-td--time" data-label="Time">
+                      <span class="prayer-time" id="time-asr">—</span>
+                    </td>
+                    <td class="quest-td quest-td--prayer-name" data-label="Prayer">
+                      <span class="prayer-name">Asr</span>
+                    </td>
+                    <td class="quest-td quest-td--notes" data-label="Notes">
+                      <input
+                        type="text"
+                        class="prayer-notes-input"
+                        id="notes-asr"
+                        placeholder="Add a note..."
+                        aria-label="Asr notes"
+                      >
+                    </td>
+                    <td class="quest-td quest-td--sp" data-label="SP">
+                      <span class="prayer-sp-value" data-sp="50">50 SP</span>
+                    </td>
+                  </tr>
+
+                  <tr class="quest-row prayer-row" id="prayer-row-shom" data-prayer="shom">
+                    <td class="quest-td quest-td--status" data-label="Status">
+                      <input type="checkbox" class="prayer-checkbox" id="chk-shom" aria-label="Mark Shom as completed">
+                      <label for="chk-shom" class="prayer-check-label" aria-hidden="true"></label>
+                    </td>
+                    <td class="quest-td quest-td--time" data-label="Time">
+                      <span class="prayer-time" id="time-shom">—</span>
+                    </td>
+                    <td class="quest-td quest-td--prayer-name" data-label="Prayer">
+                      <span class="prayer-name">Shom</span>
+                    </td>
+                    <td class="quest-td quest-td--notes" data-label="Notes">
+                      <input
+                        type="text"
+                        class="prayer-notes-input"
+                        id="notes-shom"
+                        placeholder="Add a note..."
+                        aria-label="Shom notes"
+                      >
+                    </td>
+                    <td class="quest-td quest-td--sp" data-label="SP">
+                      <span class="prayer-sp-value" data-sp="50">50 SP</span>
+                    </td>
+                  </tr>
+
+                  <tr class="quest-row prayer-row" id="prayer-row-xufton" data-prayer="xufton">
+                    <td class="quest-td quest-td--status" data-label="Status">
+                      <input type="checkbox" class="prayer-checkbox" id="chk-xufton" aria-label="Mark Xufton as completed">
+                      <label for="chk-xufton" class="prayer-check-label" aria-hidden="true"></label>
+                    </td>
+                    <td class="quest-td quest-td--time" data-label="Time">
+                      <span class="prayer-time" id="time-xufton">—</span>
+                    </td>
+                    <td class="quest-td quest-td--prayer-name" data-label="Prayer">
+                      <span class="prayer-name">Xufton</span>
+                    </td>
+                    <td class="quest-td quest-td--notes" data-label="Notes">
+                      <input
+                        type="text"
+                        class="prayer-notes-input"
+                        id="notes-xufton"
+                        placeholder="Add a note..."
+                        aria-label="Xufton notes"
+                      >
+                    </td>
+                    <td class="quest-td quest-td--sp" data-label="SP">
+                      <span class="prayer-sp-value" data-sp="50">50 SP</span>
+                    </td>
+                  </tr>
+
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Section B: Zikr & Salawat -->
+          <div id="quest-zikr-section" class="quest-section">
+            <header class="quest-section-header">
+              <div class="quest-section-title-group">
+                <h2 class="quest-section-title">Zikr &amp; Salawat</h2>
+              </div>
+              <span class="quest-section-sp-counter" id="zikr-sp-total" aria-label="Zikr SP earned">0 SP</span>
+            </header>
+            <div class="quest-table-wrapper">
+              <table
+                class="quest-table"
+                id="zikr-table"
+                aria-label="Zikr and Salawat table"
+              >
+                <thead>
+                  <tr class="quest-thead-row">
+                    <th class="quest-th" scope="col">Quest</th>
+                    <th class="quest-th" scope="col">Target</th>
+                    <th class="quest-th" scope="col">Completed</th>
+                    <th class="quest-th" scope="col">Status</th>
+                    <th class="quest-th quest-th--sp" scope="col">SP</th>
+                    <th class="quest-th quest-th--actions" scope="col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="zikr-table-body">
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ============================
+             VIEW 4 — ANALYTICS
+        ============================= -->
+        <section id="view-analytics" class="view" data-view="analytics" aria-label="Analytics">
+          <header class="view-header">
+            <h2 class="view-header-title">Analytics</h2>
+          </header>
+
+          <div class="analytics-threecol">
+            <!-- LEFT: Rank Progression (additional side panel) -->
+            <aside class="analytics-left" id="analytics-left-panel" style="width:280px;">
+              <div class="analytics-card" id="left-rank-panel">
+                <h3 class="analytics-card-title">Rank Progression</h3>
+                <div style="margin-top:12px;">
+                  <ul id="rank-list" class="rank-list" aria-hidden="false" style="padding-left:0;margin:0;list-style:none;"></ul>
+                </div>
+                <div style="margin-top:12px;">
+                  <div style="font-size:13px;color:var(--text-muted);">Current Rank</div>
+                  <div id="leftCurrentRank" style="font-weight:700;font-size:16px">Novice</div>
+                  <div style="margin-top:8px;background:var(--bg-tertiary);border-radius:6px;overflow:hidden;height:10px;">
+                    <div id="leftRankProgressFill" style="height:10px;width:0%;background:var(--accent-primary);"></div>
+                  </div>
+                </div>
+              </div>
+            </aside>
+
+            <!-- CENTER: original analytics content (unchanged) -->
+            <div class="analytics-center" id="analytics-center-col">
+              <div class="analytics-grid" id="analytics-grid">
+                <!-- Overview Cards -->
+                <article class="analytics-card" id="card-total-sp" aria-label="Total System Points">
+                  <div class="analytics-card-inner">
+                    <h3 class="analytics-card-title">Total SP</h3>
+                    <span class="analytics-card-value" id="analyticsValTotalSp">0</span>
+                    <span class="analytics-card-subtitle">System Points Accumulated</span>
+                  </div>
+                </article>
+
+                <article class="analytics-card" id="card-current-level" aria-label="Current Level">
+                  <div class="analytics-card-inner">
+                    <h3 class="analytics-card-title">Current Level</h3>
+                    <span class="analytics-card-value" id="analyticsValLevel">Level 1</span>
+                    <span class="analytics-card-subtitle">Player Level</span>
+                  </div>
+                </article>
+
+                <article class="analytics-card" id="card-current-rank" aria-label="Current Rank">
+                  <div class="analytics-card-inner">
+                    <h3 class="analytics-card-title">Current Rank</h3>
+                    <span class="analytics-card-value" id="analyticsValRank">Novice</span>
+                    <span class="analytics-card-subtitle">Rank Title</span>
+                  </div>
+                </article>
+
+                <article class="analytics-card" id="card-current-streak" aria-label="Current Streak">
+                  <div class="analytics-card-inner">
+                    <h3 class="analytics-card-title">Current Streak</h3>
+                    <span class="analytics-card-value" id="analyticsValStreak">0</span>
+                    <span class="analytics-card-subtitle">Consecutive Successful Days</span>
+                  </div>
+                </article>
+
+                <article class="analytics-card" id="card-best-streak" aria-label="Best Streak">
+                  <div class="analytics-card-inner">
+                    <h3 class="analytics-card-title">Best Streak</h3>
+                    <span class="analytics-card-value" id="analyticsValBestStreak">0</span>
+                    <span class="analytics-card-subtitle">Highest streak achieved</span>
+                  </div>
+                </article>
+
+                <article class="analytics-card" id="card-completed-tasks" aria-label="Total Completed Tasks">
+                  <div class="analytics-card-inner">
+                    <h3 class="analytics-card-title">Completed Tasks</h3>
+                    <span class="analytics-card-value" id="analyticsValCompletedTasks">0</span>
+                    <span class="analytics-card-subtitle">Lifetime completed tasks</span>
+                  </div>
+                </article>
+
+                <!-- Rank Progress (center) kept to preserve existing IDs used by JS -->
+                <div class="analytics-card" id="rank-progress" style="grid-column:1 / -1;">
+                  <h3 class="analytics-card-title">Rank Progress</h3>
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+                    <div>
+                      <div style="font-size:13px;color:var(--text-muted)">Current Rank</div>
+                      <div id="rankProgressRank" style="font-weight:700;font-size:16px">Novice</div>
+                    </div>
+                    <div style="text-align:right;">
+                      <div style="font-size:13px;color:var(--text-muted)">Level</div>
+                      <div id="rankProgressLevel" style="font-weight:700;font-size:16px">1</div>
+                    </div>
+                  </div>
+                  <div style="margin-top:12px;">
+                    <div style="background:var(--bg-tertiary);border-radius:6px;overflow:hidden;height:12px;">
+                      <div id="rankProgressBarFill" style="height:12px;width:0%;background:var(--accent-primary);"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;color:var(--text-muted);">
+                      <div>Current SP: <span id="rankProgressCurrentSp">0</span></div>
+                      <div>Next Level: <span id="rankProgressNextSp">100</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Charts Section: SP Progress, Daily Completion, Category Performance, Prayer, Quest -->
+                <div class="analytics-card" style="grid-column: 1 / -1; padding:16px;" id="charts-section">
+                  <h3 class="analytics-card-title">SP Progress (Last 30 Days)</h3>
+                  <div style="height:240px; margin-top:12px; position:relative;">
+                    <canvas id="chart-sp-progress"></canvas>
+                    <div id="chart-sp-empty" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--text-muted);">No archived data yet to render SP Progress.</div>
+                  </div>
+                </div>
+
+                <div class="analytics-card" style="grid-column: 1 / -1; padding:16px;" id="charts-section-2">
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;">
+                    <div style="min-height:240px;">
+                      <h3 class="analytics-card-title">Daily Completion Rate (Last 30 Days)</h3>
+                      <div style="height:220px;margin-top:12px;position:relative;"><canvas id="chart-daily-completion"></canvas><div id="chart-daily-empty" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--text-muted);">No archived data yet to render Daily Completion.</div></div>
+                    </div>
+                    <div style="min-height:240px;">
+                      <h3 class="analytics-card-title">Category Performance</h3>
+                      <div style="height:220px;margin-top:12px;position:relative;"><canvas id="chart-category-performance"></canvas><div id="chart-cat-empty" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--text-muted);">No category data yet.</div></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="analytics-card" style="grid-column: 1 / -1; padding:16px; display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;">
+                  <div>
+                    <h3 class="analytics-card-title">Prayer Analytics (Last 30 Days)</h3>
+                    <div style="height:220px;margin-top:12px;position:relative;"><canvas id="chart-prayer-analytics"></canvas><div id="chart-prayer-empty" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--text-muted);">No prayer history to render.</div></div>
+                  </div>
+                  <div>
+                    <h3 class="analytics-card-title">Zikr &amp; Salawat Analytics</h3>
+                    <div style="height:220px;margin-top:12px;position:relative;"><canvas id="chart-quest-analytics"></canvas><div id="chart-quest-empty" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--text-muted);">No quest history to render.</div></div>
+                  </div>
+                </div>
+
+                <!-- Discipline & Consistency -->
+                <article class="analytics-card" id="discipline-card" aria-label="Discipline">
+                  <div class="analytics-card-inner">
+                    <h3 class="analytics-card-title">Discipline Score</h3>
+                    <span class="analytics-card-value" id="analyticsValDiscipline">0%</span>
+                    <div style="margin-top:8px;font-size:13px;color:var(--text-muted);">Completed obligations: <span id="disciplineCompleted">0</span> / <span id="disciplineTotal">0</span></div>
+                  </div>
+                </article>
+
+                <article class="analytics-card" id="consistency-card" aria-label="Consistency">
+                  <div class="analytics-card-inner">
+                    <h3 class="analytics-card-title">Consistency Score</h3>
+                    <span class="analytics-card-value" id="analyticsValConsistency">0%</span>
+                    <div style="margin-top:8px;font-size:13px;color:var(--text-muted);">Successful days: <span id="consistencySuccessful">0</span> / <span id="consistencyWindow">30</span></div>
+                  </div>
+                </article>
+
+                <!-- Category Analytics Table -->
+                <div class="analytics-card" style="grid-column: 1 / -1;" id="category-analytics">
+                  <h3 class="analytics-card-title">Category Analytics</h3>
+                  <div style="margin-top:12px; overflow:auto;">
+                    <table style="width:100%;border-collapse:collapse;">
+                      <thead>
+                        <tr>
+                          <th style="text-align:left;padding:8px;color:var(--text-muted);">Category</th>
+                          <th style="text-align:right;padding:8px;color:var(--text-muted);">Completed</th>
+                          <th style="text-align:right;padding:8px;color:var(--text-muted);">Total</th>
+                          <th style="text-align:right;padding:8px;color:var(--text-muted);">%</th>
+                          <th style="text-align:right;padding:8px;color:var(--text-muted);">SP Earned</th>
+                        </tr>
+                      </thead>
+                      <tbody id="category-analytics-body"></tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Daily History -->
+                <div class="analytics-card" style="grid-column: 1 / -1;" id="daily-history">
+                  <h3 class="analytics-card-title">Recent Performance History (latest 30)</h3>
+                  <div style="margin-top:12px;overflow:auto;">
+                    <table style="width:100%;border-collapse:collapse;">
+                      <thead>
+                        <tr>
+                          <th style="text-align:left;padding:8px;color:var(--text-muted);">Date</th>
+                          <th style="text-align:right;padding:8px;color:var(--text-muted);">SP Earned</th>
+                          <th style="text-align:right;padding:8px;color:var(--text-muted);">Completed Tasks</th>
+                          <th style="text-align:right;padding:8px;color:var(--text-muted);">Completion %</th>
+                          <th style="text-align:right;padding:8px;color:var(--text-muted);">Discipline Score</th>
+                        </tr>
+                      </thead>
+                      <tbody id="daily-history-body"></tbody>
+                    </table>
+                    <div id="daily-history-empty" style="display:none;padding:16px;color:var(--text-muted);">No archived data yet. Your analytics will appear once you complete days and create archives.</div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- RIGHT: System Evaluation (additional side panel) -->
+            <aside class="analytics-right" id="analytics-right-panel" style="width:280px;">
+              <div class="analytics-card" id="system-eval-panel">
+                <h3 class="analytics-card-title">System Evaluation</h3>
+                <div style="display:flex;align-items:center;justify-content:center;margin-top:12px;flex-direction:column;">
+                  <div id="evalGrade" style="font-size:48px;font-weight:800;line-height:1;color:var(--accent-primary);">A+</div>
+                  <div id="evalScore" style="font-size:20px;font-weight:700;margin-top:6px;color:var(--text-main);">0 / 100</div>
+                  <div id="evalDesc" style="font-size:13px;color:var(--text-muted);margin-top:6px;text-align:center;">No data yet</div>
+                </div>
+
+                <div style="margin-top:16px;">
+                  <h4 style="font-size:13px;margin:0 0 8px 0;color:var(--text-muted);">Rating Scale</h4>
+                  <table style="width:100%;border-collapse:collapse;font-size:13px;color:var(--text-muted);">
+                    <tbody>
+                      <tr><td style="padding:6px;">95-100</td><td style="padding:6px;text-align:right;">SSS</td></tr>
+                      <tr><td style="padding:6px;">90-94</td><td style="padding:6px;text-align:right;">SS</td></tr>
+                      <tr><td style="padding:6px;">85-89</td><td style="padding:6px;text-align:right;">S</td></tr>
+                      <tr><td style="padding:6px;">80-84</td><td style="padding:6px;text-align:right;">A+</td></tr>
+                      <tr><td style="padding:6px;">75-79</td><td style="padding:6px;text-align:right;">A</td></tr>
+                      <tr><td style="padding:6px;">70-74</td><td style="padding:6px;text-align:right;">B+</td></tr>
+                      <tr><td style="padding:6px;">60-69</td><td style="padding:6px;text-align:right;">B</td></tr>
+                      <tr><td style="padding:6px;">50-59</td><td style="padding:6px;text-align:right;">C</td></tr>
+                      <tr><td style="padding:6px;">40-49</td><td style="padding:6px;text-align:right;">D</td></tr>
+                      <tr><td style="padding:6px;">0-39</td><td style="padding:6px;text-align:right;">F</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style="margin-top:12px;">
+                  <h4 style="font-size:13px;margin:0 0 8px 0;color:var(--text-muted);">Evaluation Formula</h4>
+                  <div style="font-size:13px;color:var(--text-main);">40% Discipline Score<br>40% Consistency Score<br>20% Streak Score</div>
+                </div>
+              </div>
+            </aside>
+
+          </div>
+        </section>
+
+      </main>
+
+      <!-- ======================================
+           BOTTOM STATUS PANEL
+      ======================================= -->
+      <footer
+        id="bottom-status-panel"
+        class="bottom-status-panel"
+        role="contentinfo"
+        aria-label="Today's Status"
+      >
+  
+        <div class="status-panel-left">
+  
+          <div class="status-stat" id="stat-today-sp">
+            <span class="status-stat-label">Today's SP</span>
+            <span class="status-stat-value" id="statTodaySp"></span>
+          </div>
+  
+          <div class="status-stat" id="stat-completed-tasks">
+            <span class="status-stat-label">Completed</span>
+            <span class="status-stat-value" id="statCompletedTasks"></span>
+          </div>
+  
+          <div class="status-stat status-stat--progress" id="stat-progress">
+            <span class="status-stat-label">Progress</span>
+            <div class="status-progress-wrapper">
+              <div
+                class="status-progress-bar"
+                id="statusProgressBar"
+                role="progressbar"
+                aria-valuenow="0"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-label="Daily progress"
+              >
+                <div class="status-progress-fill" id="statusProgressFill"></div>
+              </div>
+              <span class="status-progress-percentage" id="statProgressPct"></span>
+            </div>
+          </div>
+  
+        </div>
+  
+        <div class="status-panel-right">
+  
+          <div class="status-stat" id="stat-current-rank">
+            <span class="status-stat-label">Rank</span>
+            <span class="status-stat-value" id="statCurrentRank"></span>
+          </div>
+  
+          <div class="status-stat" id="stat-current-streak">
+            <span class="status-stat-label">Streak</span>
+            <span class="status-stat-value" id="statCurrentStreak">0</span>
+          </div>
+  
+        </div>
+  
+      </footer>
+
+    </div>
+
+    <!-- ======================================
+         OVERLAY
+    ======================================= -->
+    <div
+      id="mainOverlay"
+      class="main-overlay"
+      aria-hidden="true"
+      tabindex="-1"
+    ></div>
+
+    <!-- ======================================
+         RIGHT SIDEBAR — TASK CREATION PANEL
+    ======================================= -->
+    <aside
+      id="rightSidebar"
+      class="right-sidebar"
+      role="complementary"
+      aria-label="Create Task"
+      aria-hidden="true"
+    >
+
+      <div class="right-sidebar-header">
+        <h2 class="right-sidebar-title">Create Task</h2>
+        <button
+          id="btnCloseTaskPanel"
+          class="right-sidebar-close-btn"
+          aria-label="Close task creation panel"
+        >
+          <span class="icon-close" aria-hidden="true"></span>
+        </button>
+      </div>
+
+      <div class="right-sidebar-body">
+
+        <!-- Task Name -->
+        <div class="form-group" id="form-group-task-name">
+          <label for="inpTaskName" class="form-label">Task Name</label>
+          <input
+            type="text"
+            id="inpTaskName"
+            class="form-input"
+            placeholder="Enter task name..."
+            autocomplete="off"
+            aria-required="true"
+            aria-describedby="task-name-hint"
+          >
+        </div>
+
+        <!-- Description -->
+        <div class="form-group" id="form-group-description">
+          <label for="inpDesc" class="form-label">Description</label>
+          <textarea
+            id="inpDesc"
+            class="form-textarea"
+            placeholder="Add a description..."
+            rows="3"
+            aria-label="Task description"
+          ></textarea>
+        </div>
+
+        <!-- Task Type -->
+        <div class="form-group" id="form-group-task-type">
+          <label class="form-label" id="taskTypeLabel">Task Type</label>
+          <div
+            class="segmented-control"
+            id="taskTypeControl"
+            role="group"
+            aria-labelledby="taskTypeLabel"
+          >
+            <button
+              class="segmented-btn segmented-btn--active"
+              id="typeBtnTask"
+              data-type="task"
+              aria-pressed="true"
+            >Task</button>
+            <button
+              class="segmented-btn"
+              id="typeBtnAssignment"
+              data-type="assignment"
+              aria-pressed="false"
+            >Assignment</button>
+            <button
+              class="segmented-btn"
+              id="typeBtnMission"
+              data-type="mission"
+              aria-pressed="false"
+            >Mission</button>
+          </div>
+        </div>
+
+        <!-- SP -->
+        <div class="form-group" id="form-group-sp">
+          <label for="inpSp" class="form-label">System Points (SP)</label>
+          <input
+            type="number"
+            id="inpSp"
+            class="form-input form-input--number"
+            placeholder="5"
+            min="1"
+            aria-label="SP reward value"
+          >
+        </div>
+
+        <!-- Category -->
+        <div class="form-group" id="form-group-category">
+          <label for="inpCategory" class="form-label">Category</label>
+          <select id="inpCategory" class="form-select" aria-label="Task category">
+            <option value="" disabled selected>Select category...</option>
+            <option value="GYM">GYM</option>
+            <option value="Trading">Trading</option>
+            <option value="Education">Education</option>
+            <option value="Deep Work">Deep Work</option>
+            <option value="Health">Health</option>
+            <option value="Finance">Finance</option>
+            <option value="Islam">Islam</option>
+          </select>
+        </div>
+
+        <!-- Schedule Type -->
+        <div class="form-group" id="form-group-schedule">
+          <label class="form-label" id="scheduleTypeLabel">Schedule</label>
+          <div
+            class="segmented-control"
+            id="scheduleTypeControl"
+            role="group"
+            aria-labelledby="scheduleTypeLabel"
+          >
+            <button
+              class="segmented-btn segmented-btn--active"
+              id="scheduleBtnDaily"
+              data-schedule="daily"
+              aria-pressed="true"
+            >Daily</button>
+            <button
+              class="segmented-btn"
+              id="scheduleBtnOnce"
+              data-schedule="once"
+              aria-pressed="false"
+            >Once</button>
+            <button
+              class="segmented-btn"
+              id="scheduleBtnCustom"
+              data-schedule="custom"
+              aria-pressed="false"
+            >Custom</button>
+          </div>
+        </div>
+
+        <!-- Custom Days -->
+        <div
+          class="form-group form-group--custom-days"
+          id="form-group-custom-days"
+          aria-hidden="true"
+        >
+          <label class="form-label" id="customDaysLabel">Repeat On</label>
+          <div
+            class="custom-days-selector"
+            id="customDaysSelector"
+            role="group"
+            aria-labelledby="customDaysLabel"
+          >
+            <button class="day-btn" id="dayBtnMon" data-day="monday"    aria-pressed="false">Mon</button>
+            <button class="day-btn" id="dayBtnTue" data-day="tuesday"   aria-pressed="false">Tue</button>
+            <button class="day-btn" id="dayBtnWed" data-day="wednesday" aria-pressed="false">Wed</button>
+            <button class="day-btn" id="dayBtnThu" data-day="thursday"  aria-pressed="false">Thu</button>
+            <button class="day-btn" id="dayBtnFri" data-day="friday"    aria-pressed="false">Fri</button>
+            <button class="day-btn" id="dayBtnSat" data-day="saturday"  aria-pressed="false">Sat</button>
+            <button class="day-btn" id="dayBtnSun" data-day="sunday"    aria-pressed="false">Sun</button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="right-sidebar-footer">
+        <button
+          id="btnCreateTask"
+          class="btn btn--primary btn--full"
+          aria-label="Create task"
+        >
+          Create Task
+        </button>
+      </div>
+
+    </aside>
+
+    <aside
+      id="questModal"
+      class="quest-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="questModalTitle"
+      aria-hidden="true"
+    >
+      <div class="quest-modal-content">
+        <div class="quest-modal-header">
+          <h2 id="questModalTitle" class="quest-modal-title">Add Zikr Quest</h2>
+          <button
+            id="btnCloseQuestModal"
+            class="quest-modal-close-btn"
+            aria-label="Close quest modal"
+          >
+            <span class="icon-close" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <div class="quest-modal-body">
+          <div class="form-group">
+            <label for="inpZikrName" class="form-label">Quest Name</label>
+            <input
+              type="text"
+              id="inpZikrName"
+              class="form-input"
+              placeholder="Enter quest name"
+              autocomplete="off"
+              aria-required="true"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="inpZikrTarget" class="form-label">Target Value</label>
+            <input
+              type="number"
+              id="inpZikrTarget"
+              class="form-input form-input--number"
+              min="0"
+              value="0"
+              aria-required="true"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="inpZikrSp" class="form-label">SP Reward</label>
+            <input
+              type="number"
+              id="inpZikrSp"
+              class="form-input form-input--number"
+              min="0"
+              value="25"
+              aria-required="true"
+            >
+          </div>
+        </div>
+
+        <div class="quest-modal-footer">
+          <button
+            id="btnSaveQuest"
+            class="btn btn--primary btn--full"
+            aria-label="Save Zikr quest"
+          >
+            Save Quest
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <aside
+      id="profileModal"
+      class="quest-modal profile-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="profileModalTitle"
+      aria-hidden="true"
+    >
+      <div class="quest-modal-content">
+        <div class="quest-modal-header">
+          <h2 id="profileModalTitle" class="quest-modal-title">Edit Profile</h2>
+          <button
+            id="btnCloseProfileModal"
+            class="quest-modal-close-btn"
+            aria-label="Close profile modal"
+          >
+            <span class="icon-close" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <div class="quest-modal-body">
+          <div class="form-group profile-upload-section">
+            <label class="form-label">Avatar</label>
+            <div class="profile-upload-container">
+              <div class="profile-upload-preview">
+                <img src="" alt="Avatar Preview" id="avatarPreview" class="profile-avatar-img">
+                <span class="profile-avatar-fallback" id="avatarPreviewFallback"></span>
+              </div>
+              <label for="inpAvatar" class="btn btn--secondary profile-upload-btn">
+                Upload New
+                <input type="file" id="inpAvatar" accept="image/*" style="display: none;">
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="inpUsername" class="form-label">Username</label>
+            <input
+              type="text"
+              id="inpUsername"
+              class="form-input"
+              placeholder="Enter username"
+              autocomplete="off"
+            >
+          </div>
+        </div>
+
+        <div class="quest-modal-footer">
+          <button
+            id="btnSaveProfile"
+            class="btn btn--primary btn--full"
+            aria-label="Save profile"
+          >
+            Save Profile
+          </button>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <script src="js/start-leveling.js"></script>
+</body>
+</html>
