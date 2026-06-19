@@ -1,3 +1,4 @@
+
 /**
  * StartLeveling — Gamified Productivity OS
  * V1 Client Core Engine
@@ -217,6 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function saveState() {
+    // Save to localStorage immediately (PRIMARY)
     localStorage.setItem(STORAGE_KEYS.totalSp, String(state.totalSp));
     localStorage.setItem(STORAGE_KEYS.taskState, JSON.stringify(state.tasks));
     localStorage.setItem(STORAGE_KEYS.dailyPurpose, JSON.stringify(state.purpose));
@@ -228,6 +230,53 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem(STORAGE_KEYS.archive, JSON.stringify(state.archive));
     localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(undoStack));
     localStorage.setItem(STORAGE_KEYS.redoHistory, JSON.stringify(redoStack));
+
+    // Queue cloud sync if authenticated (SECONDARY - non-blocking)
+    if (currentUserId) {
+      queueCloudSync();
+    }
+  }
+
+  function queueCloudSync() {
+    if (!currentUserId) return;
+
+    // Sync user stats
+    if (userStatsSync) {
+      userStatsSync.update({
+        total_sp: state.totalSp,
+        discipline_scores: state.disciplineScores,
+        consistency_scores: state.consistencyScores
+      }).catch(e => console.error('Failed to queue user stats sync:', e));
+    }
+
+    // Sync tasks
+    if (tasksSync) {
+      tasksSync.update(state.tasks).catch(e => console.error('Failed to queue tasks sync:', e));
+    }
+
+    // Sync task history
+    if (taskHistorySync) {
+      taskHistorySync.update(undoStack).catch(e => console.error('Failed to queue task history sync:', e));
+    }
+
+    // Sync daily purpose
+    if (dailyPurposeSync) {
+      dailyPurposeSync.update(state.purpose).catch(e => console.error('Failed to queue daily purpose sync:', e));
+    }
+
+    // Sync daily snapshots (archive)
+    if (dailySnapshotsSync) {
+      dailySnapshotsSync.update(state.archive).catch(e => console.error('Failed to queue daily snapshots sync:', e));
+    }
+
+    // Sync prayers and zikr as part of daily snapshots
+    if (dailySnapshotsSync) {
+      dailySnapshotsSync.update({
+        prayers: state.prayers,
+        zikr: state.zikr,
+        routines: state.routines
+      }).catch(e => console.error('Failed to queue prayers/zikr sync:', e));
+    }
   }
 
   function persistAllState() {
@@ -293,11 +342,89 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
+  // SUPABASE SYNC INTEGRATION
+  // ==========================================
+  let currentUserId = null;
+  let profileSync = null;
+  let userStatsSync = null;
+  let tasksSync = null;
+  let taskHistorySync = null;
+  let dailyPurposeSync = null;
+  let dailySnapshotsSync = null;
+  let habitTemplatesSync = null;
+  let userSettingsSync = null;
+
+  async function initializeSync() {
+    try {
+      const client = initSupabaseClient();
+      if (!client) {
+        console.log('Supabase client not available, running in local-only mode');
+        return;
+      }
+
+      const { data: { user } } = await client.auth.getUser();
+      if (!user) {
+        console.log('No authenticated user, running in local-only mode');
+        return;
+      }
+
+      currentUserId = user.id;
+
+      // Initialize sync managers
+      profileSync = new ProfileSync(currentUserId);
+      userStatsSync = new UserStatsSync(currentUserId);
+      tasksSync = new TasksSync(currentUserId);
+      taskHistorySync = new TaskHistorySync(currentUserId);
+      dailyPurposeSync = new DailyPurposeSync(currentUserId);
+      dailySnapshotsSync = new DailySnapshotsSync(currentUserId);
+      habitTemplatesSync = new HabitTemplatesSync(currentUserId);
+      userSettingsSync = new UserSettingsSync(currentUserId);
+
+      console.log('Supabase sync initialized for user:', currentUserId);
+
+      window.addEventListener(
+        'profileUpdated',
+        (event) => {
+          applyProfileSnapshot(event.detail);
+        }
+      );
+
+      await loadProfile(profileSync);
+
+      window.addEventListener('focus', () => {
+        if (profileSync) {
+          loadProfile(profileSync);
+        }
+      });
+
+    } catch (error) {
+      console.error('Failed to initialize sync:', error);
+    }
+  }
+
+  function applyProfileSnapshot(profile) {
+    if (!profile) {
+      return;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(profile, 'display_name')) {
+      userProfile.username = profile.display_name || 'Adventurer';
+    }
+
+    if (Object.prototype.hasOwnProperty.call(profile, 'avatar_url')) {
+      userProfile.avatar = profile.avatar_url || '';
+    }
+
+    updateProfileSection();
+  }
+
+  // ==========================================
   // USER PROFILE MANAGEMENT
   // ==========================================
+  const initialProfileCache = readProfileCache();
   let userProfile = {
-    username: localStorage.getItem('sl_username') || 'Adventurer',
-    avatar: localStorage.getItem('sl_avatar') || ''
+    username: initialProfileCache?.display_name || 'Adventurer',
+    avatar: initialProfileCache?.avatar_url || ''
   };
 
   function initializeProfile() {
@@ -421,7 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
     reader.readAsDataURL(file);
   }
 
-  function saveProfileChanges() {
+  async function saveProfileChanges() {
     const usernameInput = document.getElementById('inpUsername');
     if (usernameInput) {
       const newUsername = usernameInput.value.trim();
@@ -435,10 +562,26 @@ document.addEventListener('DOMContentLoaded', () => {
       delete userProfile.tempAvatar;
     }
 
-    localStorage.setItem('sl_username', userProfile.username);
-    localStorage.setItem('sl_avatar', userProfile.avatar);
+    if (!profileSync || !currentUserId) {
+      showToast('Profile sync is not ready');
+      return;
+    }
 
-    updateProfileSection();
+    const profileData = {
+      display_name: userProfile.username
+    };
+
+    if (userProfile.avatar) {
+      profileData.avatar_url = userProfile.avatar;
+    }
+
+    const success = await profileSync.updateProfile(profileData);
+
+    if (!success) {
+      showToast('Profile sync failed');
+      return;
+    }
+
     closeProfileModal();
     showToast('👤 Profile updated successfully');
   }
@@ -457,12 +600,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (level) level.textContent = `Level ${currentLevel}`;
     if (rank) rank.textContent = currentRank;
 
-    // Load avatar if exists
     if (avatar && userProfile.avatar) {
       avatar.src = userProfile.avatar;
       avatar.style.display = 'block';
       const fallback = avatar.nextElementSibling;
       if (fallback) fallback.style.display = 'none';
+    } else if (avatar) {
+      avatar.removeAttribute('src');
+      avatar.style.display = 'none';
+      const fallback = avatar.nextElementSibling;
+      if (fallback) fallback.style.display = 'block';
     }
   }
 
@@ -2243,6 +2390,10 @@ document.addEventListener('DOMContentLoaded', () => {
   loadState();
   initializeProfile();
   updateProfileSection();
+  
+  // Initialize Supabase sync (non-blocking)
+  initializeSync();
+  
   performDailyResetIfNeeded();
   renderArchiveList();
   updateUI();
