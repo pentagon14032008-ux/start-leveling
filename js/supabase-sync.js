@@ -1,25 +1,3 @@
-/**
- * LifeOS Supabase Sync Module
- * Queue-backed local sync for non-profile data. Profiles are handled in js/profile-sync.js.
- */
-
-const SUPABASE_URL = "https://ipmidfvqftdahvdhasoy.supabase.co";
-const SUPABASE_KEY = "sb_publishable_SEQtc6ZDgpDcDTUqqq_Ltw_Yo6_L8cD";
-
-let supabaseClient = null;
-
-// Initialize Supabase client
-function initSupabaseClient() {
-    if (supabaseClient) return supabaseClient;
-    
-    if (typeof supabase !== 'undefined' && supabase.createClient) {
-        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        return supabaseClient;
-    }
-    
-    console.error('Supabase library not loaded');
-    return null;
-}
 
 // ==========================================
 // OFFLINE QUEUE SYSTEM
