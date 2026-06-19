@@ -1,4 +1,11 @@
+function initSupabaseClient() {
+    if (window.supabaseClient) {
+        return window.supabaseClient;
+    }
 
+    console.error("Supabase client not initialized");
+    return null;
+}
 // ==========================================
 // OFFLINE QUEUE SYSTEM
 // ==========================================
