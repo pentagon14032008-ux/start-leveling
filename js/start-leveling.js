@@ -42,33 +42,6 @@ document.addEventListener('DOMContentLoaded', () => {
     alhamdulillah: { name: 'Alhamdulillah', target: 33, completed: 0, sp: 25 }
   };
 
-  const STORAGE_KEYS = {
-    totalSp: 'sl_total_sp',
-    level: 'sl_level',
-    rank: 'sl_rank',
-    dailyPurpose: 'sl_daily_purpose',
-    taskState: 'sl_task_state',
-    discipline: 'sl_discipline_score',
-    consistency: 'sl_consistency_score',
-    archive: 'sl_archive',
-    history: 'sl_history',
-    redoHistory: 'sl_redo_history',
-    routine: 'sl_routine',
-    prayers: 'sl_prayers',
-    zikr: 'sl_zikr',
-    lastResetDate: 'sl_last_reset_date'
-  };
-
-  function getStorageJSON(key, fallback) {
-    const item = localStorage.getItem(key);
-    if (!item) return fallback;
-    try {
-      return JSON.parse(item);
-    } catch (e) {
-      return fallback;
-    }
-  }
-
   function getTashkentDateString() {
     return new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Tashkent',
@@ -124,7 +97,8 @@ document.addEventListener('DOMContentLoaded', () => {
     zikr: {},
     disciplineScores: {},
     consistencyScores: {},
-    archive: []
+    archive: [],
+    lastResetDate: null
   };
 
   let undoStack = [];
@@ -134,6 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let toolbarActionHandler = null;
   let purposeHistorySnapshot = null;
   let suppressToastsOnInitialRender = true;
+  let pendingCloudMutation = { type: 'full' };
+  let cloudSaveChain = Promise.resolve();
 
   // ==========================================
   // COMMON DOM REFERENCES
@@ -146,137 +122,144 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   // STATE PERSISTENCE & INITIALIZATION
   // ==========================================
-  function loadState() {
-    const currentDate = getTashkentDateString();
-    state.currentDate = currentDate;
-    state.viewingDate = currentDate;
-
-    const storedTotalSp = parseInt(localStorage.getItem(STORAGE_KEYS.totalSp), 10);
-    if (!Number.isNaN(storedTotalSp)) state.totalSp = storedTotalSp;
-
-    const storedArchive = getStorageJSON(STORAGE_KEYS.archive, []);
-    state.archive = Array.isArray(storedArchive) ? storedArchive : [];
-
-    const storedTasks = getStorageJSON(STORAGE_KEYS.taskState, {});
-    if (storedTasks && typeof storedTasks === 'object') state.tasks = storedTasks;
-
-    const storedPurpose = getStorageJSON(STORAGE_KEYS.dailyPurpose, {});
-    if (storedPurpose && typeof storedPurpose === 'object') state.purpose = storedPurpose;
-
-    const storedRoutines = getStorageJSON(STORAGE_KEYS.routine, {});
-    if (storedRoutines && typeof storedRoutines === 'object') state.routines = storedRoutines;
-
-    const storedPrayers = getStorageJSON(STORAGE_KEYS.prayers, {});
-    if (storedPrayers && typeof storedPrayers === 'object') state.prayers = storedPrayers;
-
-    const storedZikr = getStorageJSON(STORAGE_KEYS.zikr, {});
-    if (storedZikr && typeof storedZikr === 'object') state.zikr = storedZikr;
-
-    normalizeZikrData(state.zikr);
-
-    const storedDiscipline = getStorageJSON(STORAGE_KEYS.discipline, {});
-    if (storedDiscipline && typeof storedDiscipline === 'object') state.disciplineScores = storedDiscipline;
-
-    const storedConsistency = getStorageJSON(STORAGE_KEYS.consistency, {});
-    if (storedConsistency && typeof storedConsistency === 'object') state.consistencyScores = storedConsistency;
-
-    const storedHistory = getStorageJSON(STORAGE_KEYS.history, []);
-    if (Array.isArray(storedHistory)) undoStack = storedHistory;
-
-    const storedRedo = getStorageJSON(STORAGE_KEYS.redoHistory, []);
-    if (Array.isArray(storedRedo)) redoStack = storedRedo;
-
-    if (!state.tasks[currentDate]) {
-      state.tasks[currentDate] = deepClone(INITIAL_TASKS);
-      state.prayers[currentDate] = deepClone(DEFAULT_PRAYERS);
-      state.zikr[currentDate] = deepClone(DEFAULT_ZIKR);
-      state.purpose[currentDate] = state.purpose[currentDate] || '';
-      state.routines[currentDate] = state.routines[currentDate] || '';
+  function ensureCurrentDayState(date = state.currentDate) {
+    if (!state.tasks[date]) {
+      state.tasks[date] = deepClone(INITIAL_TASKS);
     }
 
-    normalizeZikrData({ [currentDate]: state.zikr[currentDate] });
+    if (!state.purpose[date]) {
+      state.purpose[date] = '';
+    }
 
-    buildArchiveHistory();
+    if (!state.routines[date]) {
+      state.routines[date] = '';
+    }
+
+    if (!state.prayers[date]) {
+      state.prayers[date] = deepClone(DEFAULT_PRAYERS);
+    }
+
+    if (!state.zikr[date]) {
+      state.zikr[date] = deepClone(DEFAULT_ZIKR);
+    }
+
+    normalizeZikrData({ [date]: state.zikr[date] });
   }
 
-  function buildInitialState() {
-    const currentDate = getTashkentDateString();
-    state.totalSp = 380;
-    state.currentDate = currentDate;
-    state.viewingDate = currentDate;
-    state.purpose[currentDate] = '';
-    state.routines[currentDate] = '';
-    state.tasks[currentDate] = deepClone(INITIAL_TASKS);
-    state.prayers[currentDate] = deepClone(DEFAULT_PRAYERS);
-    state.zikr[currentDate] = deepClone(DEFAULT_ZIKR);
+  function applyCloudState(cloudState) {
+    const payload = cloudState && typeof cloudState === 'object'
+      ? cloudState
+      : {};
+
+    state.tasks = payload.tasks && typeof payload.tasks === 'object' && !Array.isArray(payload.tasks)
+      ? deepClone(payload.tasks)
+      : {};
+
+    state.purpose = payload.purpose && typeof payload.purpose === 'object' && !Array.isArray(payload.purpose)
+      ? deepClone(payload.purpose)
+      : {};
+
+    state.routines = payload.routines && typeof payload.routines === 'object' && !Array.isArray(payload.routines)
+      ? deepClone(payload.routines)
+      : {};
+
+    state.prayers = payload.prayers && typeof payload.prayers === 'object' && !Array.isArray(payload.prayers)
+      ? deepClone(payload.prayers)
+      : {};
+
+    state.zikr = payload.zikr && typeof payload.zikr === 'object' && !Array.isArray(payload.zikr)
+      ? deepClone(payload.zikr)
+      : {};
+
+    state.lastResetDate =
+      payload.lastResetDate ||
+      payload.last_reset_date ||
+      null;
+
+    if (typeof payload.totalSp === 'number' && !Number.isNaN(payload.totalSp)) {
+      state.totalSp = payload.totalSp;
+    }
+
+    normalizeZikrData(state.zikr);
+  }
+
+  function markCloudMutation(mutation) {
+    pendingCloudMutation = mutation || { type: 'full' };
+  }
+
+  function rebuildDerivedState() {
+    ensureCurrentDayState(state.currentDate);
+    normalizeZikrData(state.zikr);
+
+    const allDates = Array.from(
+      new Set(
+        Object.keys(state.tasks || {})
+          .concat(Object.keys(state.purpose || {}))
+          .concat(Object.keys(state.routines || {}))
+          .concat(Object.keys(state.prayers || {}))
+          .concat(Object.keys(state.zikr || {}))
+      )
+    ).sort();
+
+    state.totalSp = 0;
     state.disciplineScores = {};
     state.consistencyScores = {};
     state.archive = [];
-    undoStack = [];
-    redoStack = [];
-    persistAllState();
+
+    allDates.forEach(date => {
+      const archiveEntry = createArchiveEntryForDate(date);
+      state.totalSp += Number(archiveEntry.earnedSp) || 0;
+      state.disciplineScores[date] = archiveEntry.disciplineScore;
+      state.consistencyScores[date] = archiveEntry.consistencyScore;
+
+      if (date !== state.currentDate) {
+        state.archive.push(archiveEntry);
+      }
+    });
+
+    state.archive.sort((left, right) => right.date.localeCompare(left.date));
+  }
+
+  async function loadState() {
+    const currentDate = getTashkentDateString();
+    state.currentDate = currentDate;
+    state.viewingDate = currentDate;
+
+    if (!cloudStore) {
+      ensureCurrentDayState(currentDate);
+      rebuildDerivedState();
+      return;
+    }
+
+    const cloudState = await cloudStore.loadAll();
+    applyCloudState(cloudState);
+    ensureCurrentDayState(currentDate);
+    rebuildDerivedState();
+
+    if (typeof cloudState.totalSp === 'number') {
+      state.totalSp = cloudState.totalSp;
+    }
   }
 
   function saveState() {
-    // Save to localStorage immediately (PRIMARY)
-    localStorage.setItem(STORAGE_KEYS.totalSp, String(state.totalSp));
-    localStorage.setItem(STORAGE_KEYS.taskState, JSON.stringify(state.tasks));
-    localStorage.setItem(STORAGE_KEYS.dailyPurpose, JSON.stringify(state.purpose));
-    localStorage.setItem(STORAGE_KEYS.routine, JSON.stringify(state.routines));
-    localStorage.setItem(STORAGE_KEYS.prayers, JSON.stringify(state.prayers));
-    localStorage.setItem(STORAGE_KEYS.zikr, JSON.stringify(state.zikr));
-    localStorage.setItem(STORAGE_KEYS.discipline, JSON.stringify(state.disciplineScores));
-    localStorage.setItem(STORAGE_KEYS.consistency, JSON.stringify(state.consistencyScores));
-    localStorage.setItem(STORAGE_KEYS.archive, JSON.stringify(state.archive));
-    localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(undoStack));
-    localStorage.setItem(STORAGE_KEYS.redoHistory, JSON.stringify(redoStack));
+    rebuildDerivedState();
 
-    // Queue cloud sync if authenticated (SECONDARY - non-blocking)
-    if (currentUserId) {
-      queueCloudSync();
-    }
-  }
-
-  function queueCloudSync() {
-    if (!currentUserId) return;
-
-    // Sync user stats
-    if (userStatsSync) {
-      userStatsSync.update({
-        total_sp: state.totalSp,
-        discipline_scores: state.disciplineScores,
-        consistency_scores: state.consistencyScores
-      }).catch(e => console.error('Failed to queue user stats sync:', e));
+    if (!cloudStore) {
+      return;
     }
 
-    // Sync tasks
-    if (tasksSync) {
-      tasksSync.update(state.tasks).catch(e => console.error('Failed to queue tasks sync:', e));
-    }
+    const mutation = pendingCloudMutation;
+    pendingCloudMutation = { type: 'full' };
 
-    // Sync task history
-    if (taskHistorySync) {
-      taskHistorySync.update(undoStack).catch(e => console.error('Failed to queue task history sync:', e));
-    }
+    cloudSaveChain = cloudSaveChain
+      .catch(() => undefined)
+      .then(() => cloudStore.executeMutation(mutation, state))
+      .catch(error => {
+        console.error('Failed to save StartLeveling state:', error);
+        showToast('Cloud save failed. Check your connection.');
+      });
 
-    // Sync daily purpose
-    if (dailyPurposeSync) {
-      dailyPurposeSync.update(state.purpose).catch(e => console.error('Failed to queue daily purpose sync:', e));
-    }
-
-    // Sync daily snapshots (archive)
-    if (dailySnapshotsSync) {
-      dailySnapshotsSync.update(state.archive).catch(e => console.error('Failed to queue daily snapshots sync:', e));
-    }
-
-    // Sync prayers and zikr as part of daily snapshots
-    if (dailySnapshotsSync) {
-      dailySnapshotsSync.update({
-        prayers: state.prayers,
-        zikr: state.zikr,
-        routines: state.routines
-      }).catch(e => console.error('Failed to queue prayers/zikr sync:', e));
-    }
+    return cloudSaveChain;
   }
 
   function persistAllState() {
@@ -345,42 +328,29 @@ document.addEventListener('DOMContentLoaded', () => {
   // SUPABASE SYNC INTEGRATION
   // ==========================================
   let currentUserId = null;
+  let cloudStore = null;
   let profileSync = null;
-  let userStatsSync = null;
-  let tasksSync = null;
-  let taskHistorySync = null;
-  let dailyPurposeSync = null;
-  let dailySnapshotsSync = null;
-  let habitTemplatesSync = null;
-  let userSettingsSync = null;
 
   async function initializeSync() {
     try {
-      const client = initSupabaseClient();
+      const client = getSupabaseClient();
       if (!client) {
-        console.log('Supabase client not available, running in local-only mode');
-        return;
+        window.location.href = window.PORTAL_URL || "https://lifeos-portal.netlify.app/portal.html";
+        return false;
       }
 
-      const { data: { user } } = await client.auth.getUser();
-      if (!user) {
-        console.log('No authenticated user, running in local-only mode');
-        return;
+      const {
+        data: { session }
+      } = await client.auth.getSession();
+
+      if (!session || !session.user) {
+        window.location.href = window.PORTAL_URL || "https://lifeos-portal.netlify.app/portal.html";
+        return false;
       }
 
-      currentUserId = user.id;
-
-      // Initialize sync managers
+      currentUserId = session.user.id;
+      cloudStore = new StartLevelingCloudStore(currentUserId);
       profileSync = new ProfileSync(currentUserId);
-      userStatsSync = new UserStatsSync(currentUserId);
-      tasksSync = new TasksSync(currentUserId);
-      taskHistorySync = new TaskHistorySync(currentUserId);
-      dailyPurposeSync = new DailyPurposeSync(currentUserId);
-      dailySnapshotsSync = new DailySnapshotsSync(currentUserId);
-      habitTemplatesSync = new HabitTemplatesSync(currentUserId);
-      userSettingsSync = new UserSettingsSync(currentUserId);
-
-      console.log('Supabase sync initialized for user:', currentUserId);
 
       window.addEventListener(
         'profileUpdated',
@@ -389,16 +359,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       );
 
-      await loadProfile(profileSync);
-
       window.addEventListener('focus', () => {
         if (profileSync) {
           loadProfile(profileSync);
         }
       });
 
+      client.auth.onAuthStateChange((_event, session) => {
+        if (!session) {
+          window.location.href = window.PORTAL_URL || "https://lifeos-portal.netlify.app/portal.html";
+        }
+      });
+
+      return true;
     } catch (error) {
       console.error('Failed to initialize sync:', error);
+      window.location.href = window.PORTAL_URL || "https://lifeos-portal.netlify.app/portal.html";
+      return false;
     }
   }
 
@@ -421,10 +398,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   // USER PROFILE MANAGEMENT
   // ==========================================
-  const initialProfileCache = readProfileCache();
   let userProfile = {
-    username: initialProfileCache?.display_name || 'Adventurer',
-    avatar: initialProfileCache?.avatar_url || ''
+    username: 'Adventurer',
+    avatar: ''
   };
 
   function initializeProfile() {
@@ -940,7 +916,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const c = categories[cat];
         const pct = c.total > 0 ? Math.round((c.completed / c.total) * 100) : 0;
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td style="padding:8px;">${cat}</td><td style="padding:8px;text-align:right;">${c.completed}</td><td style="padding:8px;text-align:right;">${c.total}</td><td style="padding:8px;text-align:right;">${pct}%</td><td style="padding:8px;text-align:right;">${c.sp}</td>`;
+        tr.innerHTML = `<td data-label="Category" style="padding:8px;">${cat}</td><td data-label="Completed" style="padding:8px;text-align:right;">${c.completed}</td><td data-label="Total" style="padding:8px;text-align:right;">${c.total}</td><td data-label="Rate" style="padding:8px;text-align:right;">${pct}%</td><td data-label="SP" style="padding:8px;text-align:right;">${c.sp}</td>`;
         catBody.appendChild(tr);
       });
       if (Object.keys(categories).length === 0) {
@@ -973,7 +949,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const total = Number(e.totalTasks || 0);
           const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td style="padding:8px;">${d}</td><td style="padding:8px;text-align:right;">${e.earnedSp || 0}</td><td style="padding:8px;text-align:right;">${completed}</td><td style="padding:8px;text-align:right;">${rate}%</td>`;
+          tr.innerHTML = `<td data-label="Date" style="padding:8px;">${d}</td><td data-label="SP" style="padding:8px;text-align:right;">${e.earnedSp || 0}</td><td data-label="Completed" style="padding:8px;text-align:right;">${completed}</td><td data-label="Rate" style="padding:8px;text-align:right;">${rate}%</td>`;
           historyBody.appendChild(tr);
         });
       }
@@ -1258,24 +1234,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function buildArchiveHistory() {
-    const existingDates = new Set(state.archive.map(entry => entry.date));
-    Object.keys(state.tasks).forEach(date => {
-      if (date !== state.currentDate && !existingDates.has(date)) {
-        state.archive.push(createArchiveEntryForDate(date));
-      }
-    });
+    rebuildDerivedState();
   }
 
   function archiveCurrentDay() {
-    const currentDate = state.currentDate;
-    const existingIndex = state.archive.findIndex(entry => entry.date === currentDate);
-    const snapshot = createArchiveEntryForDate(currentDate);
-    if (existingIndex !== -1) {
-      state.archive[existingIndex] = snapshot;
-    } else {
-      state.archive.unshift(snapshot);
-    }
-    localStorage.setItem(STORAGE_KEYS.archive, JSON.stringify(state.archive));
+    rebuildDerivedState();
     renderArchiveList();
     showToast('📦 Archive Created');
   }
@@ -1300,26 +1263,38 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function performDailyResetIfNeeded() {
-    const storedDate = localStorage.getItem(STORAGE_KEYS.lastResetDate);
     const today = getTashkentDateString();
-    if (storedDate === today) return;
-
-    if (storedDate && storedDate !== today) {
-      if (state.tasks[storedDate]) {
-        archiveCurrentDay();
-      }
-    }
+    const hasCurrentDayData = Boolean(
+      state.tasks[today] ||
+      state.purpose[today] ||
+      state.routines[today] ||
+      state.prayers[today] ||
+      state.zikr[today]
+    );
 
     state.currentDate = today;
     state.viewingDate = today;
-    state.purpose[today] = state.purpose[today] || '';
-    state.routines[today] = state.routines[today] || '';
-    state.tasks[today] = state.tasks[today] || deepClone(INITIAL_TASKS);
-    state.prayers[today] = state.prayers[today] || deepClone(DEFAULT_PRAYERS);
-    state.zikr[today] = state.zikr[today] || deepClone(DEFAULT_ZIKR);
 
+    if (state.lastResetDate === today) {
+      ensureCurrentDayState(today);
+      rebuildDerivedState();
+      return;
+    }
+
+    if (!state.lastResetDate && hasCurrentDayData) {
+      state.lastResetDate = today;
+      ensureCurrentDayState(today);
+      rebuildDerivedState();
+      markCloudMutation({ type: 'settings' });
+      saveState();
+      return;
+    }
+
+    ensureCurrentDayState(today);
     resetDailyProgress(today);
-    localStorage.setItem(STORAGE_KEYS.lastResetDate, today);
+    state.lastResetDate = today;
+    rebuildDerivedState();
+    markCloudMutation({ type: 'full' });
     saveState();
   }
 
@@ -1339,8 +1314,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function recordDailyScores(date) {
-    state.disciplineScores[date] = calculateMetricsForDate(date).disciplineScore;
-    state.consistencyScores[date] = calculateConsistencyForDate(date);
+    rebuildDerivedState();
+    markCloudMutation({ type: 'stats' });
     saveState();
   }
 
@@ -1536,8 +1511,57 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function getActiveViewName() {
-    const activeNav = document.querySelector('.sidebar-nav-btn.sidebar-nav-btn--active');
+    const activeNav = document.querySelector('.sidebar-nav-btn.sidebar-nav-btn--active, .mobile-nav-btn.mobile-nav-btn--active');
     return activeNav ? activeNav.getAttribute('data-view') : 'daily-workbook';
+  }
+
+  function setActiveView(targetId, viewTitle) {
+    const navButtons = [
+      document.getElementById('navDailyWorkbook'),
+      document.getElementById('navDailyRoutine'),
+      document.getElementById('navDailyQuest'),
+      document.getElementById('navAnalytics')
+    ];
+    const mobileNavButtons = document.querySelectorAll('.mobile-nav-btn');
+    const views = [
+      document.getElementById('view-daily-workbook'),
+      document.getElementById('view-daily-routine'),
+      document.getElementById('view-daily-quest'),
+      document.getElementById('view-analytics')
+    ];
+
+    navButtons.forEach((button) => {
+      if (!button) {
+        return;
+      }
+
+      const isActive = button.getAttribute('data-target') === targetId;
+      button.classList.toggle('sidebar-nav-btn--active', isActive);
+      if (isActive) {
+        button.setAttribute('aria-current', 'page');
+      } else {
+        button.removeAttribute('aria-current');
+      }
+    });
+
+    mobileNavButtons.forEach((button) => {
+      const isActive = button.getAttribute('data-target') === targetId;
+      button.classList.toggle('mobile-nav-btn--active', isActive);
+      button.setAttribute('aria-current', isActive ? 'page' : 'false');
+    });
+
+    views.forEach((view) => {
+      if (view) {
+        view.classList.toggle('view--active', view.id === targetId);
+      }
+    });
+
+    safeSetText(
+      'currentViewTitle',
+      state.viewingDate !== state.currentDate ? `Archive: ${state.viewingDate}` : viewTitle
+    );
+    updateToolbarAction();
+    updateStatusBarVisibility();
   }
 
   function updateToolbarAction() {
@@ -1661,27 +1685,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Mobile Hamburger Menu Toggle
+  // Mobile menu opens archive/profile drawer (not primary navigation)
   if (mobileMenuBtn && leftSidebar) {
     mobileMenuBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const isExpanded = leftSidebar.getAttribute('aria-expanded') === 'true';
       leftSidebar.setAttribute('aria-expanded', !isExpanded);
       mobileMenuBtn.setAttribute('aria-expanded', !isExpanded);
-      
-      // Toggle overlay for sidebar too
+
       if (!isExpanded) {
         if (mainOverlay) {
           mainOverlay.style.display = 'block';
           mainOverlay.setAttribute('aria-hidden', 'false');
         }
-      } else {
-        // Only hide overlay if no other panel is open
-        if (rightSidebar && rightSidebar.getAttribute('aria-hidden') === 'true') {
-           if (mainOverlay) {
-             mainOverlay.style.display = 'none';
-             mainOverlay.setAttribute('aria-hidden', 'true');
-           }
+      } else if (rightSidebar && rightSidebar.getAttribute('aria-hidden') === 'true') {
+        if (mainOverlay) {
+          mainOverlay.style.display = 'none';
+          mainOverlay.setAttribute('aria-hidden', 'true');
         }
       }
     });
@@ -1735,43 +1755,27 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('navDailyQuest'),
     document.getElementById('navAnalytics')
   ];
-  const views = [
-    document.getElementById('view-daily-workbook'),
-    document.getElementById('view-daily-routine'),
-    document.getElementById('view-daily-quest'),
-    document.getElementById('view-analytics')
-  ];
 
-  navButtons.forEach(btn => {
-    if (!btn) return;
-    btn.addEventListener('click', () => {
-      const targetId = btn.getAttribute('data-target');
-      const titleLabel = btn.querySelector('.sidebar-nav-label');
+  function bindViewNavigation(button) {
+    if (!button) {
+      return;
+    }
+
+    button.addEventListener('click', () => {
+      const targetId = button.getAttribute('data-target');
+      const titleLabel = button.querySelector('.sidebar-nav-label, .mobile-nav-label');
       const viewTitle = titleLabel ? titleLabel.textContent : 'Daily Workbook';
 
-      navButtons.forEach(b => {
-        if (b) {
-          b.classList.remove('sidebar-nav-btn--active');
-          b.removeAttribute('aria-current');
-        }
-      });
-      btn.classList.add('sidebar-nav-btn--active');
-      btn.setAttribute('aria-current', 'page');
+      setActiveView(targetId, viewTitle);
 
-      views.forEach(v => { if (v) v.classList.remove('view--active'); });
-      const currentView = document.getElementById(targetId);
-      if (currentView) currentView.classList.add('view--active');
-
-      safeSetText('currentViewTitle', state.viewingDate !== state.currentDate ? `Archive: ${state.viewingDate}` : viewTitle);
-      updateToolbarAction();
-      updateStatusBarVisibility();
-
-      // Close sidebar on nav click (mobile)
       if (window.innerWidth <= 768) {
         closeActivePanel();
       }
     });
-  });
+  }
+
+  navButtons.forEach(bindViewNavigation);
+  document.querySelectorAll('.mobile-nav-btn').forEach(bindViewNavigation);
 
   // Return to Today Button
   const returnToTodayBtn = document.getElementById('btnReturnToToday');
@@ -1826,6 +1830,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (state.viewingDate !== state.currentDate) return;
       saveToHistory();
       state.purpose[state.currentDate] = e.target.value;
+      markCloudMutation({ type: 'daily', date: state.currentDate });
       saveState();
       showToast("💾 Daily Purpose auto-saved");
     });
@@ -1837,6 +1842,7 @@ document.addEventListener('DOMContentLoaded', () => {
     routineEditor.addEventListener('input', (e) => {
       if (state.viewingDate !== state.currentDate) return;
       state.routines[state.currentDate] = e.target.innerHTML;
+      markCloudMutation({ type: 'daily', date: state.currentDate });
       saveState();
     });
   }
@@ -1866,6 +1872,12 @@ document.addEventListener('DOMContentLoaded', () => {
             state.totalSp -= points;
             showToast(`❌ Task unchecked. -${points} SP`);
           }
+          markCloudMutation({
+            type: 'task',
+            op: 'update',
+            task,
+            date: state.currentDate
+          });
           saveState();
           updateUI();
         }
@@ -1917,6 +1929,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (task.completed) state.totalSp -= (parseInt(task.sp) || 0);
       dayTasks.splice(idx, 1);
       showToast("🗑️ Task successfully deleted");
+      markCloudMutation({
+        type: 'task',
+        op: 'delete',
+        taskId,
+        date: state.currentDate,
+        taskMeta: task
+      });
       saveState();
       updateUI();
     } else if (action === 'duplicate') {
@@ -1927,6 +1946,12 @@ document.addEventListener('DOMContentLoaded', () => {
       clone.completed = false;
       dayTasks.push(clone);
       showToast("📋 Task duplicated");
+      markCloudMutation({
+        type: 'task',
+        op: 'insert',
+        task: clone,
+        date: state.currentDate
+      });
       saveState();
       updateUI();
     } else if (action === 'edit') {
@@ -1955,7 +1980,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function openTaskSidebarPanel() {
     if (!rightSidebar || !mainOverlay) return;
     rightSidebar.setAttribute('aria-hidden', 'false');
-    rightSidebar.style.transform = 'translateX(0)';
+    if (window.innerWidth <= 768) {
+      rightSidebar.style.transform = 'translateY(0)';
+    } else {
+      rightSidebar.style.transform = 'translateX(0)';
+    }
     mainOverlay.style.display = 'block';
     mainOverlay.setAttribute('aria-hidden', 'false');
   }
@@ -1963,7 +1992,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function closeTaskSidebarPanel() {
     if (!rightSidebar || !mainOverlay) return;
     rightSidebar.setAttribute('aria-hidden', 'true');
-    rightSidebar.style.transform = 'translateX(100%)';
+    if (window.innerWidth <= 768) {
+      rightSidebar.style.transform = 'translateY(100%)';
+    } else {
+      rightSidebar.style.transform = 'translateX(100%)';
+    }
     mainOverlay.style.display = 'none';
     mainOverlay.setAttribute('aria-hidden', 'true');
 
@@ -2051,6 +2084,7 @@ document.addEventListener('DOMContentLoaded', () => {
         delete state.zikr[state.currentDate][editingZikrId];
       }
 
+      markCloudMutation({ type: 'daily', date: state.currentDate });
       saveState();
       updateUI();
       closeQuestModal();
@@ -2097,6 +2131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         saveToHistory();
         if (state.zikr[state.currentDate] && state.zikr[state.currentDate][zikrId]) {
           delete state.zikr[state.currentDate][zikrId];
+          markCloudMutation({ type: 'daily', date: state.currentDate });
           saveState();
           updateUI();
           showToast('🗑️ Zikr quest deleted');
@@ -2196,6 +2231,12 @@ document.addEventListener('DOMContentLoaded', () => {
           task.category = category;
           task.type = type;
           showToast("✏️ Task updated successfully");
+          markCloudMutation({
+            type: 'task',
+            op: 'update',
+            task,
+            date: state.currentDate
+          });
         }
       } else {
         const newTask = {
@@ -2209,6 +2250,12 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         dayTasks.push(newTask);
         showToast("🆕 New Task created successfully");
+        markCloudMutation({
+          type: 'task',
+          op: 'insert',
+          task: newTask,
+          date: state.currentDate
+        });
       }
 
       saveState();
@@ -2243,6 +2290,7 @@ document.addEventListener('DOMContentLoaded', () => {
             state.totalSp -= 50;
             showToast(`Prayer unchecked: -50 SP`);
           }
+          markCloudMutation({ type: 'daily', date: state.currentDate, syncStats: true });
           saveState();
           updateUI();
         }
@@ -2256,6 +2304,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const dayPrayers = state.prayers[state.currentDate];
         if (dayPrayers && dayPrayers[prayerId]) {
           dayPrayers[prayerId].notes = e.target.value;
+          markCloudMutation({ type: 'daily', date: state.currentDate });
           saveState();
         }
       }
@@ -2295,6 +2344,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast(`Zikr metric reverted: -25 SP`);
           }
         }
+        markCloudMutation({ type: 'daily', date: state.currentDate, syncStats: true });
         saveState();
         updateUI();
       }
@@ -2330,6 +2380,7 @@ document.addEventListener('DOMContentLoaded', () => {
       state.routines = past.routines;
 
       showToast("🔄 History Action Undone");
+      markCloudMutation({ type: 'full' });
       saveState();
       updateUI();
     });
@@ -2361,6 +2412,7 @@ document.addEventListener('DOMContentLoaded', () => {
       state.routines = future.routines;
 
       showToast("🔄 History Action Redone");
+      markCloudMutation({ type: 'full' });
       saveState();
       updateUI();
     });
@@ -2375,27 +2427,34 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // LifeOS Portal Navigation
-  const PORTAL_URL = "https://lifeos-portal.netlify.app/portal.html";
   const btnBackToLifeOS = document.getElementById('btnBackToLifeOS');
   if (btnBackToLifeOS) {
     btnBackToLifeOS.addEventListener('click', (e) => {
       e.preventDefault();
-      window.location.href = PORTAL_URL;
+      window.location.href = window.PORTAL_URL || "https://lifeos-portal.netlify.app/portal.html";
     });
   }
 
   // ==========================================
   // INITIAL BOOTSTRAP EXECUTOR
   // ==========================================
-  loadState();
-  initializeProfile();
-  updateProfileSection();
-  
-  // Initialize Supabase sync (non-blocking)
-  initializeSync();
-  
-  performDailyResetIfNeeded();
-  renderArchiveList();
-  updateUI();
-  suppressToastsOnInitialRender = false;
+  async function bootstrapApp() {
+    const authenticated = await initializeSync();
+    if (!authenticated) {
+      return;
+    }
+
+    await loadState();
+    await loadProfile(profileSync);
+    initializeProfile();
+    performDailyResetIfNeeded();
+    renderArchiveList();
+    updateUI();
+    suppressToastsOnInitialRender = false;
+  }
+
+  bootstrapApp().catch(error => {
+    console.error('Failed to bootstrap StartLeveling:', error);
+    window.location.href = window.PORTAL_URL || "https://lifeos-portal.netlify.app/portal.html";
+  });
 });

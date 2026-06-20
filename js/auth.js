@@ -1,38 +1,62 @@
+
 const SUPABASE_URL =
     "https://ipmidfvqftdahvdhasoy.supabase.co";
 
 const SUPABASE_KEY =
     "sb_publishable_SEQtc6ZDgpDcDTUqqq_Ltw_Yo6_L8cD";
 
+const PORTAL_URL =
+    "https://lifeos-portal.netlify.app/portal.html";
+
 const { createClient } = supabase;
 
 const supabaseClient = createClient(
     SUPABASE_URL,
-    SUPABASE_KEY
+    SUPABASE_KEY,
+    {
+        auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true
+        }
+    }
 );
 
-console.log("LifeOS Auth Connected");
-console.log(supabaseClient);
-
-async function autoLogin() {
-
-    const { data } =
-    await supabaseClient.auth.getSession();
-
-    if (data.session) {
-
-        window.location.href =
-        "portal.html";
-
-    }
+function ensureSupabaseClient() {
+    window.supabaseClient = supabaseClient;
+    window.getSupabaseClient = function () {
+        return supabaseClient;
+    };
+    window.PORTAL_URL = PORTAL_URL;
+    return supabaseClient;
 }
 
-if (
-    window.location.pathname.includes("index.html")
-    ||
-    window.location.pathname === "/"
-) {
-    autoLogin();
+async function ensureProtectedSession() {
+    const appShell = document.getElementById("app-layout");
+
+    if (!appShell) {
+        return true;
+    }
+
+    const {
+        data: { session }
+    } = await supabaseClient.auth.getSession();
+
+    if (!session) {
+        window.location.href = PORTAL_URL;
+        return false;
+    }
+
+    return true;
+}
+
+ensureSupabaseClient();
+
+if (document.getElementById("app-layout")) {
+    ensureProtectedSession().catch((error) => {
+        console.error("Failed to verify Supabase session:", error);
+        window.location.href = PORTAL_URL;
+    });
 }
 
 const registerBtn =
@@ -136,7 +160,6 @@ if (registerForm) {
             }
 
             const {
-                data,
                 error
             } = await supabaseClient.auth.signUp({
 
@@ -339,8 +362,3 @@ window.addEventListener(
     }
 );
 
-window.supabaseClient = supabaseClient;
-
-window.initSupabaseClient = function () {
-    return supabaseClient;
-};

@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>StartLeveling — Gamified Productivity OS</title>
   
   <link rel="stylesheet" href="css/start-leveling.css">
@@ -1113,6 +1113,62 @@
     </aside>
 
   </div>
+
+  <nav
+    id="mobile-bottom-nav"
+    class="mobile-bottom-nav"
+    role="navigation"
+    aria-label="Mobile Main Navigation"
+  >
+    <button
+      class="mobile-nav-btn mobile-nav-btn--active"
+      id="mobileNavDailyWorkbook"
+      data-view="daily-workbook"
+      data-target="view-daily-workbook"
+      aria-label="Daily Workbook"
+      aria-current="page"
+      type="button"
+    >
+      <span class="mobile-nav-icon" aria-hidden="true">📋</span>
+      <span class="mobile-nav-label">Workbook</span>
+    </button>
+    <button
+      class="mobile-nav-btn"
+      id="mobileNavDailyRoutine"
+      data-view="daily-routine"
+      data-target="view-daily-routine"
+      aria-label="Daily Routine"
+      aria-current="false"
+      type="button"
+    >
+      <span class="mobile-nav-icon" aria-hidden="true">📝</span>
+      <span class="mobile-nav-label">Routine</span>
+    </button>
+    <button
+      class="mobile-nav-btn"
+      id="mobileNavDailyQuest"
+      data-view="daily-quest"
+      data-target="view-daily-quest"
+      aria-label="Daily Quest"
+      aria-current="false"
+      type="button"
+    >
+      <span class="mobile-nav-icon" aria-hidden="true">⭐</span>
+      <span class="mobile-nav-label">Quest</span>
+    </button>
+    <button
+      class="mobile-nav-btn"
+      id="mobileNavAnalytics"
+      data-view="analytics"
+      data-target="view-analytics"
+      aria-label="Analytics"
+      aria-current="false"
+      type="button"
+    >
+      <span class="mobile-nav-icon" aria-hidden="true">📊</span>
+      <span class="mobile-nav-label">Analytics</span>
+    </button>
+  </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/auth.js"></script>
